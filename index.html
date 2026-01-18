@@ -1,0 +1,1512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Vending Machine Tracker (Offline)</title>
+<style>
+:root{--bg:#0b0f19;--panel:#111a2e;--text:#e7eefc;--muted:#a8b6d6;--accent:#5aa7ff;--line:#223155;--good:#2ee59d;--warn:#ffd166;--bad:#ff5c7a;--r:14px}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial;color:var(--text);
+background:radial-gradient(1200px 600px at 10% 10%, #122449 0%, var(--bg) 55%)}
+header{position:sticky;top:0;z-index:50;background:rgba(11,15,25,.75);backdrop-filter:blur(10px);
+border-bottom:1px solid rgba(34,49,85,.6)}
+.wrap{max-width:1200px;margin:0 auto;padding:16px}
+.top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+h1{margin:0;font-size:18px}
+.sub{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.35}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+button{border:1px solid rgba(90,167,255,.35);background:rgba(90,167,255,.12);color:var(--text);
+padding:9px 12px;border-radius:12px;cursor:pointer;font-weight:700;font-size:13px;transition:.12s}
+button:hover{transform:translateY(-1px);border-color:rgba(90,167,255,.7)}
+button.secondary{border-color:rgba(168,182,214,.25);background:rgba(168,182,214,.08)}
+button.danger{border-color:rgba(255,92,122,.5);background:rgba(255,92,122,.12)}
+button.good{border-color:rgba(46,229,157,.5);background:rgba(46,229,157,.12)}
+.grid{display:grid;grid-template-columns:270px 1fr;gap:14px;align-items:start}
+nav{position:sticky;top:86px;border:1px solid rgba(34,49,85,.8);border-radius:var(--r);
+background:linear-gradient(180deg,rgba(17,26,46,.95),rgba(15,22,39,.92));overflow:hidden}
+.navh{padding:12px;border-bottom:1px solid rgba(34,49,85,.7)}
+.navh label{display:block;color:var(--muted);font-size:12px;margin:0 0 6px}
+#q{width:100%;padding:10px;border-radius:12px;border:1px solid rgba(34,49,85,.9);
+background:rgba(9,13,23,.6);color:var(--text);outline:none}
+.navlist{padding:10px;display:flex;flex-direction:column;gap:6px}
+.navitem{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;cursor:pointer;color:var(--muted);user-select:none}
+.navitem:hover{background:rgba(90,167,255,.08);color:var(--text)}
+.navitem.active{background:rgba(90,167,255,.14);color:var(--text);border:1px solid rgba(90,167,255,.25)}
+.chip{margin-left:auto;font-family:ui-monospace,Consolas,monospace;font-size:11px;padding:4px 7px;border-radius:999px;
+border:1px solid rgba(34,49,85,.8);background:rgba(22,36,68,.9);color:var(--muted);min-width:38px;text-align:center}
+main{border:1px solid rgba(34,49,85,.8);border-radius:var(--r);overflow:hidden;
+background:linear-gradient(180deg,rgba(17,26,46,.92),rgba(15,22,39,.88))}
+.pane{padding:14px;border-bottom:1px solid rgba(34,49,85,.65)}
+.pane h2{margin:0 0 6px;font-size:16px}
+.pane p{margin:0;color:var(--muted);font-size:12px;line-height:1.35}
+.section{padding:14px;display:none}
+.section.active{display:block}
+.card{border:1px solid rgba(34,49,85,.8);border-radius:var(--r);background:rgba(9,13,23,.45);padding:12px}
+.cards{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:980px){.cards.two{grid-template-columns:1fr 1fr}.cards.three{grid-template-columns:1fr 1fr 1fr}}
+label{display:block;color:var(--muted);font-size:12px;margin:0 0 6px}
+input,select,textarea{width:100%;padding:10px;border-radius:12px;border:1px solid rgba(34,49,85,.9);
+background:rgba(9,13,23,.55);color:var(--text);outline:none;font-size:13px}
+textarea{min-height:86px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.help{color:var(--muted);font-size:12px;line-height:1.35;margin-top:6px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:10px 0}
+.tablewrap{overflow:auto;border:1px solid rgba(34,49,85,.75);border-radius:14px;background:rgba(9,13,23,.35)}
+
+/* Machines list: make vertically scrollable so all columns/rows are reachable on small screens */
+#machinesListWrap{max-height:52vh;overflow:auto}
+@media (max-width: 900px){
+  /* Ensure Add/Update card stays above Machine List on mobile */
+  #tab-machines .cards.two{display:flex;flex-direction:column}
+  #tab-machines .cards.two > .card{order:0}
+  #tab-machines .cards.two > .card:first-child{order:-1}
+  #machinesListWrap{max-height:45vh}
+}
+
+table{width:100%;border-collapse:collapse;min-width:860px}
+th,td{padding:10px;border-bottom:1px solid rgba(34,49,85,.55);font-size:13px;vertical-align:top}
+th{position:sticky;top:0;background:rgba(17,26,46,.95);color:var(--muted);text-align:left;font-weight:800;z-index:5}
+tr:hover td{background:rgba(90,167,255,.06)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;
+border:1px solid rgba(34,49,85,.75);background:rgba(22,36,68,.7);font-size:12px;color:var(--muted);white-space:nowrap}
+.pill.good{border-color:rgba(46,229,157,.4);background:rgba(46,229,157,.12);color:#c9ffea}
+.pill.warn{border-color:rgba(255,209,102,.4);background:rgba(255,209,102,.12);color:#fff2cc}
+.pill.bad{border-color:rgba(255,92,122,.45);background:rgba(255,92,122,.12);color:#ffd1da}
+.kpi{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.kpi .v{font-size:20px;font-weight:900}
+.kpi .t{font-size:12px;color:var(--muted)}
+.footer{padding:12px 14px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;
+border-top:1px solid rgba(34,49,85,.65)}
+.linklike{color:var(--accent);cursor:pointer;text-decoration:none}
+.notice{border:1px dashed rgba(168,182,214,.35);background:rgba(168,182,214,.06);border-radius:14px;padding:10px;
+color:var(--muted);font-size:12px;line-height:1.35;white-space:pre-line}
+@media(max-width:980px){.grid{grid-template-columns:1fr}nav{position:relative;top:auto}table{min-width:720px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Vending Machine Tracker (Offline)</h1>
+        <div class="sub">Single-file web app. Works locally on PC/phone. Saves to this device (LocalStorage). Export JSON backups for portability.</div>
+      </div>
+      <div class="actions">
+        <button class="secondary" id="exportJsonTop" type="button">Export JSON</button>
+        <button class="secondary" id="importJsonTop" type="button">Import JSON</button>
+        <button class="secondary" id="demoTop" type="button">Load Demo</button>
+        <button class="danger" id="resetTop" type="button">Reset</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+    <nav>
+      <div class="navh">
+        <label>Quick find</label>
+        <input id="q" placeholder="Search machines, SKUs, visits, tickets, expenses..."/>
+      </div>
+      <div class="navlist" id="nav">
+        <div class="navitem active" data-tab="dashboard">Dashboard <span class="chip" id="cDash">—</span></div>
+        <div class="navitem" data-tab="machines">Machines <span class="chip" id="cMachines">0</span></div>
+        <div class="navitem" data-tab="inventory">Inventory <span class="chip" id="cSkus">0</span></div>
+        <div class="navitem" data-tab="service">Service Visits <span class="chip" id="cVisits">0</span></div>
+        <div class="navitem" data-tab="maintenance">Maintenance <span class="chip" id="cTickets">0</span></div>
+        <div class="navitem" data-tab="expenses">Expenses <span class="chip" id="cExpenses">0</span></div>
+        <div class="navitem" data-tab="reports">Reports/Exports <span class="chip" id="cReports">—</span></div>
+        <div class="navitem" data-tab="settings">Settings <span class="chip" id="cSettings">—</span></div>
+      </div>
+    </nav>
+
+    <main>
+      <div class="pane">
+        <h2 id="paneTitle">Dashboard</h2>
+        <p id="paneDesc">KPIs and operational flags across your route.</p>
+      </div>
+
+      <section class="section active" id="tab-dashboard">
+        <div class="cards three">
+          <div class="card"><div class="kpi"><div><div class="t">Active Machines</div><div class="v" id="kMachines">0</div></div><div class="pill">Fleet</div></div><div class="help">Machines with Status = Active.</div></div>
+          <div class="card"><div class="kpi"><div><div class="t">Revenue (30d)</div><div class="v" id="kRev30">$0.00</div></div><div class="pill good">Trend</div></div><div class="help">Cash + card + coin from visits in last 30 days.</div></div>
+          <div class="card"><div class="kpi"><div><div class="t">Expenses (30d)</div><div class="v" id="kExp30">$0.00</div></div><div class="pill warn">Costs</div></div><div class="help">Expense entries in last 30 days.</div></div>
+          <div class="card"><div class="kpi"><div><div class="t">Open Tickets</div><div class="v" id="kOpenTickets">0</div></div><div class="pill bad">Attention</div></div><div class="help">Open / In Progress / Waiting on Parts.</div></div>
+          <div class="card"><div class="kpi"><div><div class="t">OOS Events (30d)</div><div class="v" id="kOos30">0</div></div><div class="pill warn">Service</div></div><div class="help">Line items marked “Out of stock found”.</div></div>
+          <div class="card"><div class="kpi"><div><div class="t">Profit Est. (30d)</div><div class="v" id="kProfit30">$0.00</div></div><div class="pill good">Estimate</div></div><div class="help">Revenue − Expenses − Commission estimate.</div></div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="cards two">
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Operational Flags</h3>
+            <div class="notice" id="flags">No flags.</div>
+          </div>
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Next Service Suggestions</h3>
+            <div class="tablewrap">
+              <table style="min-width:650px">
+                <thead><tr><th>Machine</th><th>Location</th><th>Last Visit</th><th>Suggested Next</th><th>Reason</th></tr></thead>
+                <tbody id="nextService"></tbody>
+              </table>
+            </div>
+            <div class="help">Based on each machine’s Service Frequency (days) and last logged visit.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="tab-machines">
+        <div class="cards two">
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Add / Update Machine</h3>
+            <div class="row">
+              <div><label>Machine ID (unique)</label><input id="m_id" placeholder="e.g., M-001"/></div>
+              <div><label>Status</label>
+                <select id="m_status"><option>Active</option><option>Inactive</option><option>Storage</option><option>Retired</option></select>
+              </div>
+            </div>
+            <div class="row">
+              <div><label>Type</label><select id="m_type"><option>Snack</option><option>Drink</option><option>Combo</option><option>Micro Market</option><option>Other</option></select></div>
+              <div><label>Brand/Model</label><input id="m_model" placeholder="Optional"/></div>
+            </div>
+            <div class="row">
+              <div><label>Location Name</label><input id="m_location" placeholder="e.g., Acme Warehouse"/></div>
+              <div><label>Address</label><input id="m_address" placeholder="Street, City, State"/></div>
+            </div>
+            <div class="row">
+              <div><label>Commission %</label><input id="m_commission" type="number" step="0.1" min="0" max="100"/></div>
+              <div><label>Service Frequency (days)</label><input id="m_freq" type="number" step="1" min="1"/></div>
+            </div>
+            <div><label>Notes</label><textarea id="m_notes" placeholder="Access hours, keys, contact, etc."></textarea></div>
+            <div class="toolbar">
+              <div class="actions">
+                <button class="good" id="saveMachine" type="button">Save Machine</button>
+                <button class="secondary" id="clearMachine" type="button">Clear</button>
+              </div>
+              <div class="actions">
+                <button class="secondary" id="csvMachines" type="button">Machines CSV</button>
+              </div>
+            </div>
+            <div class="help">Tip: Use Edit in the list to load a machine into this form.</div>
+          </div>
+
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Machine List</h3>
+            <div class="tablewrap" id="machinesListWrap">
+              <table>
+                <thead><tr><th>Machine</th><th>Status</th><th>Type</th><th>Location</th><th>Comm</th><th>Freq</th><th>Last Visit</th><th>Actions</th></tr></thead>
+                <tbody id="machinesTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      
+        <div class="card">
+          <h3 style="margin:0 0 10px;font-size:14px">Inventory per Machine</h3>
+          <div class="row">
+            <div><label>Machine</label><select id="mi_machine"></select></div>
+            <div><label>SKU</label><select id="mi_sku"></select></div>
+          </div>
+          <div class="row">
+            <div><label>On-hand Qty</label><input id="mi_qty" type="number" min="0" step="1" placeholder="0"/></div>
+            <div><label>Par Level (optional)</label><input id="mi_par" type="number" min="0" step="1" placeholder=""/></div>
+          </div>
+          <div class="actions">
+            <button id="mi_save" type="button">Save Inventory</button>
+            <button class="secondary" id="mi_clear" type="button">Clear</button>
+          </div>
+          <div class="help">Tip: Select a machine to view its inventory list below. Use Edit to load a row into the form.</div>
+          <div class="tablewrap" id="mi_tablewrap" style="margin-top:10px;max-height:45vh">
+            <table>
+              <thead><tr><th>SKU</th><th>Name</th><th>On-hand</th><th>Par</th><th>Updated</th><th>Actions</th></tr></thead>
+              <tbody id="mi_table"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <section class="section" id="tab-inventory">
+        <div class="cards two">
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">SKU Catalog</h3>
+            <div class="row">
+              <div><label>SKU ID (unique)</label><input id="s_id" placeholder="e.g., SKU-001"/></div>
+              <div><label>Category</label><select id="s_cat"><option>Snack</option><option>Drink</option><option>Candy</option><option>Healthy</option><option>Other</option></select></div>
+            </div>
+            <div class="row">
+              <div><label>Product Name</label><input id="s_name" placeholder="e.g., Doritos Nacho"/></div>
+              <div><label>UPC (optional)</label><input id="s_upc" placeholder="Optional"/></div>
+            </div>
+            <div class="row3">
+              <div><label>Cost</label><input id="s_cost" type="number" step="0.01" min="0"/></div>
+              <div><label>Price</label><input id="s_price" type="number" step="0.01" min="0"/></div>
+              <div><label>Default Par</label><input id="s_par" type="number" step="1" min="0"/></div>
+            </div>
+            <div><label>Notes</label><textarea id="s_notes" placeholder="Supplier, case size, etc."></textarea></div>
+            <div class="toolbar">
+              <div class="actions">
+                <button class="good" id="saveSku" type="button">Save SKU</button>
+                <button class="secondary" id="clearSku" type="button">Clear</button>
+              </div>
+              <div class="actions">
+                <button class="secondary" id="csvSkus" type="button">SKUs CSV</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Planograms / Par Levels</h3>
+            <div class="row">
+              <div><label>Machine</label><select id="p_machine"></select></div>
+              <div><label>SKU</label><select id="p_sku"></select></div>
+            </div>
+            <div class="row3">
+              <div><label>Slot/Column</label><input id="p_slot" placeholder="A1, B3, 1, 12"/></div>
+              <div><label>Par Level</label><input id="p_par" type="number" step="1" min="0"/></div>
+              <div><label>Enabled</label><select id="p_enabled"><option value="true">Yes</option><option value="false">No</option></select></div>
+            </div>
+            <div class="toolbar">
+              <div class="actions"><button class="good" id="savePlanogram" type="button">Add/Update Slot</button></div>
+              <div class="actions"><button class="secondary" id="csvPlanograms" type="button">Planograms CSV</button></div>
+            </div>
+            <div class="tablewrap">
+              <table>
+                <thead><tr><th>Machine</th><th>Slot</th><th>SKU</th><th>Product</th><th>Par</th><th>Enabled</th><th>Actions</th></tr></thead>
+                <tbody id="planogramsTable"></tbody>
+              </table>
+            </div>
+            <div class="help">Planograms help consistent stocking and OOS tracking.</div>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="card">
+          <h3 style="margin:0 0 10px;font-size:14px">SKU List</h3>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>SKU</th><th>Category</th><th>Product</th><th>UPC</th><th>Cost</th><th>Price</th><th>Par</th><th>Actions</th></tr></thead>
+              <tbody id="skusTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="tab-service">
+        <div class="cards two">
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Log a Service Visit</h3>
+            <div class="row">
+              <div><label>Visit ID</label><input id="v_id" placeholder="Auto if blank"/></div>
+              <div><label>Date</label><input id="v_date" type="date"/></div>
+            </div>
+            <div class="row">
+              <div><label>Machine</label><select id="v_machine"></select></div>
+              <div><label>Visit Type</label><select id="v_type"><option>Restock</option><option>Collection</option><option>Restock + Collection</option><option>Audit</option><option>Other</option></select></div>
+            </div>
+            <div class="row3">
+              <div><label>Cash</label><input id="v_cash" type="number" step="0.01" min="0"/></div>
+              <div><label>Card/Cashless</label><input id="v_card" type="number" step="0.01" min="0"/></div>
+              <div><label>Coin</label><input id="v_coin" type="number" step="0.01" min="0"/></div>
+            </div>
+
+            <div class="card" style="margin-top:10px">
+              <h3 style="margin:0 0 10px;font-size:14px">Restock Line Items</h3>
+              <div class="row3">
+                <div><label>SKU</label><select id="li_sku"></select></div>
+                <div><label>Qty Added</label><input id="li_qty" type="number" step="1" min="0"/></div>
+                <div><label>OOS found?</label><select id="li_oos"><option value="false">No</option><option value="true">Yes</option></select></div>
+              </div>
+              <div class="toolbar">
+                <div class="actions">
+                  <button class="secondary" id="addLine" type="button">Add Line</button>
+                  <button class="secondary" id="clearLines" type="button">Clear Lines</button>
+                </div>
+              </div>
+              <div class="tablewrap">
+                <table style="min-width:700px">
+                  <thead><tr><th>SKU</th><th>Product</th><th>Qty</th><th>OOS</th><th>Actions</th></tr></thead>
+                  <tbody id="linesTable"></tbody>
+                </table>
+              </div>
+              <div class="help">Mark OOS = Yes when you arrive and find the slot empty.</div>
+            </div>
+
+            <div><label>Notes</label><textarea id="v_notes" placeholder="Access issues, product requests, etc."></textarea></div>
+
+            <div class="toolbar">
+              <div class="actions">
+                <button class="good" id="saveVisit" type="button">Save Visit</button>
+                <button class="secondary" id="clearVisit" type="button">Clear</button>
+              </div>
+              <div class="actions">
+                <button class="secondary" id="csvVisits" type="button">Visits CSV</button>
+                <button class="secondary" id="csvVisitLines" type="button">Visit Line Items CSV</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Visit Log</h3>
+            <div class="tablewrap">
+              <table>
+                <thead><tr><th>Date</th><th>Visit</th><th>Machine</th><th>Type</th><th>Total</th><th>Comm Est.</th><th>Lines</th><th>Actions</th></tr></thead>
+                <tbody id="visitsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="tab-maintenance">
+        <div class="cards two">
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Create / Update Ticket</h3>
+            <div class="row">
+              <div><label>Ticket ID</label><input id="t_id" placeholder="Auto if blank"/></div>
+              <div><label>Status</label><select id="t_status"><option>Open</option><option>In Progress</option><option>Waiting on Parts</option><option>Resolved</option><option>Closed</option></select></div>
+            </div>
+            <div class="row">
+              <div><label>Machine</label><select id="t_machine"></select></div>
+              <div><label>Priority</label><select id="t_priority"><option>Low</option><option>Normal</option><option>High</option><option>Critical</option></select></div>
+            </div>
+            <div class="row3">
+              <div><label>Date Opened</label><input id="t_opened" type="date"/></div>
+              <div><label>Date Resolved</label><input id="t_resolved" type="date"/></div>
+              <div><label>Downtime (hrs)</label><input id="t_downtime" type="number" step="0.1" min="0"/></div>
+            </div>
+            <div class="row">
+              <div><label>Issue Type</label><select id="t_issue"><option>Bill Validator</option><option>Coin Mech</option><option>Card Reader</option><option>Cooling/Compressor</option><option>Motor/Spiral</option><option>Display/Board</option><option>Jam/Delivery</option><option>Vandalism</option><option>Other</option></select></div>
+              <div><label>Parts</label><input id="t_parts" placeholder="Motor, validator belt kit, etc."/></div>
+            </div>
+            <div><label>Notes</label><textarea id="t_notes" placeholder="Symptoms, steps taken, vendor calls..."></textarea></div>
+            <div class="toolbar">
+              <div class="actions">
+                <button class="good" id="saveTicket" type="button">Save Ticket</button>
+                <button class="secondary" id="clearTicket" type="button">Clear</button>
+              </div>
+              <div class="actions">
+                <button class="secondary" id="csvTickets" type="button">Tickets CSV</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Ticket List</h3>
+            <div class="tablewrap">
+              <table>
+                <thead><tr><th>Opened</th><th>Ticket</th><th>Status</th><th>Priority</th><th>Machine</th><th>Issue</th><th>Resolved</th><th>Actions</th></tr></thead>
+                <tbody id="ticketsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="tab-expenses">
+        <div class="cards two">
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Add Expense</h3>
+            <div class="row">
+              <div><label>Expense ID</label><input id="e_id" placeholder="Auto if blank"/></div>
+              <div><label>Date</label><input id="e_date" type="date"/></div>
+            </div>
+            <div class="row">
+              <div><label>Category</label><select id="e_cat"><option>Inventory</option><option>Parts</option><option>Fuel</option><option>Parking/Tolls</option><option>Insurance</option><option>Fees/Processing</option><option>Commission Payout</option><option>Labor</option><option>Equipment</option><option>Other</option></select></div>
+              <div><label>Vendor</label><input id="e_vendor" placeholder="Sam's Club, Amazon, Nayax..."/></div>
+            </div>
+            <div class="row">
+              <div><label>Machine (optional)</label><select id="e_machine"></select></div>
+              <div><label>Amount</label><input id="e_amount" type="number" step="0.01" min="0"/></div>
+            </div>
+            <div><label>Notes</label><textarea id="e_notes" placeholder="Receipt notes, breakdown, etc."></textarea></div>
+            <div class="toolbar">
+              <div class="actions">
+                <button class="good" id="saveExpense" type="button">Save Expense</button>
+                <button class="secondary" id="clearExpense" type="button">Clear</button>
+              </div>
+              <div class="actions">
+                <button class="secondary" id="csvExpenses" type="button">Expenses CSV</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Expense Log</h3>
+            <div class="tablewrap">
+              <table>
+                <thead><tr><th>Date</th><th>Expense</th><th>Category</th><th>Vendor</th><th>Machine</th><th>Amount</th><th>Actions</th></tr></thead>
+                <tbody id="expensesTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="tab-reports">
+        <div class="cards two">
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Report Filters</h3>
+            <div class="row"><div><label>Date From</label><input id="r_from" type="date"/></div><div><label>Date To</label><input id="r_to" type="date"/></div></div>
+            <div class="row"><div><label>Machine (optional)</label><select id="r_machine"></select></div>
+              <div><label>Include Commission Est.</label><select id="r_comm"><option value="true">Yes</option><option value="false">No</option></select></div>
+            </div>
+            <div class="toolbar">
+              <div class="actions"><button class="good" id="runReport" type="button">Run Summary</button></div>
+              <div class="actions"><button class="secondary" id="csvReport" type="button">Summary CSV</button></div>
+            </div>
+            <div class="notice">Summary: gross collections, estimated commission, expenses, and a basic profit estimate.</div>
+          </div>
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Summary Output</h3>
+            <div class="cards three">
+              <div class="card"><div class="kpi"><div><div class="t">Gross Revenue</div><div class="v" id="repRev">$0.00</div></div><div class="pill good">Visits</div></div></div>
+              <div class="card"><div class="kpi"><div><div class="t">Commission Est.</div><div class="v" id="repComm">$0.00</div></div><div class="pill warn">Contracts</div></div></div>
+              <div class="card"><div class="kpi"><div><div class="t">Expenses</div><div class="v" id="repExp">$0.00</div></div><div class="pill warn">Costs</div></div></div>
+            </div>
+            <div style="height:10px"></div>
+            <div class="card"><div class="kpi"><div><div class="t">Profit Estimate</div><div class="v" id="repProfit">$0.00</div></div><div class="pill good">Estimate</div></div><div class="help">Profit = Revenue − Expenses − Commission (if included).</div></div>
+            <div style="height:10px"></div>
+            <div class="tablewrap">
+              <table style="min-width:650px"><thead><tr><th>Metric</th><th>Value</th><th>Notes</th></tr></thead><tbody id="repTable"></tbody></table>
+            </div>
+            <div style="height:10px"></div>
+            <div class="toolbar">
+              <div class="actions"><button class="secondary" id="csvAll" type="button">Export All CSVs</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="tab-settings">
+        <div class="cards two">
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Business Defaults</h3>
+            <div class="row">
+              <div><label>Default Commission %</label><input id="set_comm" type="number" step="0.1" min="0" max="100"/></div>
+              <div><label>Default Service Frequency (days)</label><input id="set_freq" type="number" step="1" min="1"/></div>
+            </div>
+            <div class="row">
+              <div><label>Currency Symbol</label><input id="set_cur" placeholder="$"/></div>
+              <div><label>Owner Name (optional)</label><input id="set_owner" placeholder="Your business name"/></div>
+            </div>
+            <div class="toolbar"><div class="actions"><button class="good" id="saveSettings" type="button">Save Settings</button></div></div>
+            <div class="help">Settings are stored locally with your records on this device.</div>
+          </div>
+
+          <div class="card">
+            <h3 style="margin:0 0 10px;font-size:14px">Data Management</h3>
+            <div class="notice">Data is stored in this browser on this device. Clearing browser data deletes records unless you export a JSON backup.</div>
+            <div style="height:10px"></div>
+            <div class="toolbar">
+              <div class="actions">
+                <button class="secondary" id="exportJson" type="button">Export JSON</button>
+                <button class="secondary" id="importJson" type="button">Import JSON</button>
+                <button class="secondary" id="demo" type="button">Load Demo</button>
+              </div>
+              <div class="actions">
+                <button class="danger" id="reset" type="button">Reset</button>
+              </div>
+            </div>
+            <div class="help">Best practice: export JSON weekly (or before major edits).</div>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer">
+        <div>Offline tracker • Data stored on this device only • Use JSON backups for portability.</div>
+        <div><a class="linklike" id="top">Back to top</a> <span style="color:var(--muted)"> • </span> <span style="font-family:ui-monospace,Consolas,monospace" id="saved">Last saved: —</span></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<input type="file" id="file" accept="application/json" style="display:none"/>
+
+<script>
+window.addEventListener("DOMContentLoaded", () => {
+  const KEY = "vending_tracker_offline_v1";
+  const $ = (id) => document.getElementById(id);
+  const nowISO = () => new Date().toISOString();
+  const todayISO = () => new Date().toISOString().slice(0,10);
+  const t = (v) => (v ?? "").toString().trim();
+  const n = (v) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
+  const esc = (s) => (s ?? "").toString().replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  const uid = (p) => (p + "-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,7)).toUpperCase();
+  const days = (d) => d*24*60*60*1000;
+  const within = (iso, d) => iso ? (Date.now() - new Date(iso).getTime() <= days(d)) : false;
+
+  const empty = () => ({
+    settings: { defaultCommission: 10, defaultFreq: 7, currency: "$", owner: "" },
+    machines: [], skus: [], planograms: [], visits: [], tickets: [], expenses: [],
+    machineInventory: [],
+    meta: { lastSavedISO: null }
+  });
+
+  let state = load();
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(KEY);
+      if(!raw) return empty();
+      const s = JSON.parse(raw);
+      const base = empty();
+      return {
+        ...base,
+        ...s,
+        settings: { ...base.settings, ...(s.settings||{}) },
+        meta: { ...base.meta, ...(s.meta||{}) },
+        machines: Array.isArray(s.machines)? s.machines : [],
+        skus: Array.isArray(s.skus)? s.skus : [],
+        planograms: Array.isArray(s.planograms)? s.planograms : [],
+        visits: Array.isArray(s.visits)? s.visits : [],
+        tickets: Array.isArray(s.tickets)? s.tickets : [],
+        expenses: Array.isArray(s.expenses)? s.expenses : [],
+        machineInventory: Array.isArray(s.machineInventory)? s.machineInventory : []
+      };
+    }catch(e){
+      console.warn("Load failed", e);
+      return empty();
+    }
+  }
+
+  function save(){
+    state.meta.lastSavedISO = nowISO();
+    localStorage.setItem(KEY, JSON.stringify(state));
+    $("saved").textContent = "Last saved: " + new Date(state.meta.lastSavedISO).toLocaleString();
+    refresh();
+  }
+
+  function money(v){
+    const sym = state.settings.currency || "$";
+    const x = Math.round((v + Number.EPSILON)*100)/100;
+    return sym + x.toFixed(2);
+  }
+
+  const tabMeta = {
+    dashboard:{title:"Dashboard",desc:"KPIs and operational flags across your route."},
+    machines:{title:"Machines",desc:"Machine registry: location, contract terms, service frequency, status."},
+    inventory:{title:"Inventory",desc:"SKU catalog + planograms/par levels."},
+    service:{title:"Service Visits",desc:"Restock + collection logs with line items and commission estimate."},
+    maintenance:{title:"Maintenance",desc:"Tickets, parts, downtime and resolution notes."},
+    expenses:{title:"Expenses",desc:"Inventory purchases, fees, fuel, parts, equipment, other costs."},
+    reports:{title:"Reports/Exports",desc:"Summary by date range + CSV/JSON exports."},
+    settings:{title:"Settings",desc:"Defaults and backup/restore."}
+  };
+
+  function setTab(tab){
+    document.querySelectorAll(".navitem").forEach(i=>i.classList.toggle("active", i.dataset.tab===tab));
+    document.querySelectorAll(".section").forEach(s=>s.classList.toggle("active", s.id===("tab-"+tab)));
+    $("paneTitle").textContent = tabMeta[tab].title;
+    $("paneDesc").textContent = tabMeta[tab].desc;
+  }
+
+  $("nav").addEventListener("click", (e) => {
+    const it = e.target.closest(".navitem");
+    if(!it) return;
+    setTab(it.dataset.tab);
+  });
+
+  $("top").addEventListener("click", ()=>window.scrollTo({top:0,behavior:"smooth"}));
+  $("q").addEventListener("input", refresh);
+
+  function matches(hay){
+    const q = t($("q").value).toLowerCase();
+    if(!q) return true;
+    return t(hay).toLowerCase().includes(q);
+  }
+
+  function lastVisit(machineId){
+    const vs = state.visits.filter(v=>v.machineId===machineId).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+    return vs.length ? vs[0].date : "";
+  }
+  function visitTotal(v){ return n(v.cash)+n(v.card)+n(v.coin); }
+  function commEst(v){
+    const m = state.machines.find(x=>x.id===v.machineId);
+    const pct = m ? n(m.commissionPct) : 0;
+    return visitTotal(v) * (pct/100);
+  }
+
+  function fillSelect(selId, list, labelFn, firstLabel){
+    const sel = $(selId);
+    const keep = sel.value;
+    sel.innerHTML = "";
+    const o0 = document.createElement("option");
+    o0.value = "";
+    o0.textContent = firstLabel;
+    sel.appendChild(o0);
+    list.forEach(x=>{
+      const o = document.createElement("option");
+      o.value = x.id;
+      o.textContent = labelFn(x);
+      sel.appendChild(o);
+    });
+    sel.value = keep;
+  }
+
+  function refreshSelects(){
+    const machines = state.machines.slice().sort((a,b)=>a.id.localeCompare(b.id));
+    fillSelect("p_machine", machines, m=>`${m.id} — ${m.location||"(No location)"}`, "Select…");
+    fillSelect("v_machine", machines, m=>`${m.id} — ${m.location||"(No location)"}`, "Select…");
+    fillSelect("t_machine", machines, m=>`${m.id} — ${m.location||"(No location)"}`, "Select…");
+    fillSelect("mi_machine", machines, m=>`${m.id} — ${m.location||"(No location)"}`, "Select…");
+    fillSelect("e_machine", machines, m=>`${m.id} — ${m.location||"(No location)"}`, "(General / Not tied to a machine)");
+    fillSelect("r_machine", machines, m=>`${m.id} — ${m.location||"(No location)"}`, "(All machines)");
+
+    const skus = state.skus.slice().sort((a,b)=>a.id.localeCompare(b.id));
+    fillSelect("p_sku", skus, s=>`${s.id} — ${s.name||"(No name)"}`, "Select…");
+    fillSelect("li_sku", skus, s=>`${s.id} — ${s.name||"(No name)"}`, "Select…");
+    fillSelect("mi_sku", skus, s=>`${s.id} — ${s.name||"(No name)"}`, "Select…");
+  }
+
+  function clearMachine(){
+    $("m_id").value=""; $("m_status").value="Active"; $("m_type").value="Snack"; $("m_model").value="";
+    $("m_location").value=""; $("m_address").value="";
+    $("m_commission").value = state.settings.defaultCommission ?? 10;
+    $("m_freq").value = state.settings.defaultFreq ?? 7;
+    $("m_notes").value="";
+  }
+  $("clearMachine").addEventListener("click", clearMachine);
+
+  $("saveMachine").addEventListener("click", () => {
+    const id = t($("m_id").value);
+    if(!id){ alert("Machine ID is required."); return; }
+    const m = {
+      id,
+      status: $("m_status").value,
+      type: $("m_type").value,
+      model: t($("m_model").value),
+      location: t($("m_location").value),
+      address: t($("m_address").value),
+      commissionPct: n($("m_commission").value),
+      serviceFreqDays: Math.max(1, Math.floor(n($("m_freq").value) || (state.settings.defaultFreq ?? 7))),
+      notes: t($("m_notes").value)
+    };
+    const idx = state.machines.findIndex(x=>x.id===id);
+    if(idx>=0) state.machines[idx]=m; else state.machines.push(m);
+    save();
+    clearMachine();
+  });
+
+  function loadMachine(id){
+    const m = state.machines.find(x=>x.id===id); if(!m) return;
+    $("m_id").value=m.id; $("m_status").value=m.status; $("m_type").value=m.type; $("m_model").value=m.model||"";
+    $("m_location").value=m.location||""; $("m_address").value=m.address||"";
+    $("m_commission").value=m.commissionPct??0; $("m_freq").value=m.serviceFreqDays??7; $("m_notes").value=m.notes||"";
+  }
+  function deleteMachine(id){
+    state.machines = state.machines.filter(m=>m.id!==id);
+    state.machineInventory = (state.machineInventory||[]).filter(x=>x.machineId!==id);
+    save();
+  }
+
+  function clearSku(){
+    $("s_id").value=""; $("s_cat").value="Snack"; $("s_name").value=""; $("s_upc").value="";
+    $("s_cost").value=""; $("s_price").value=""; $("s_par").value=""; $("s_notes").value="";
+  }
+  $("clearSku").addEventListener("click", clearSku);
+
+
+  $("mi_clear") && $("mi_clear").addEventListener("click", clearMI);
+  $("mi_machine") && $("mi_machine").addEventListener("change", () => { clearMI(); renderMachineInventory(); });
+  $("mi_save") && $("mi_save").addEventListener("click", () => {
+    const machineId = t($("mi_machine").value);
+    const skuId = t($("mi_sku").value);
+    if(!machineId){ alert("Select a machine."); return; }
+    if(!skuId){ alert("Select a SKU."); return; }
+    const onHand = parseInt($("mi_qty").value||"0", 10);
+    const parRaw = $("mi_par").value;
+    const par = parRaw==="" ? null : parseInt(parRaw, 10);
+    upsertMachineInventory({ machineId, skuId, onHand: isNaN(onHand)?0:onHand, par: (par==null||isNaN(par))?null:par, updatedISO: nowISO() });
+    save();
+  });
+
+
+  $("saveSku").addEventListener("click", () => {
+    const id = t($("s_id").value);
+    if(!id){ alert("SKU ID is required."); return; }
+    const s = {
+      id,
+      category: $("s_cat").value,
+      name: t($("s_name").value),
+      upc: t($("s_upc").value),
+      cost: n($("s_cost").value),
+      price: n($("s_price").value),
+      defaultPar: Math.max(0, Math.floor(n($("s_par").value))),
+      notes: t($("s_notes").value)
+    };
+    const idx = state.skus.findIndex(x=>x.id===id);
+    if(idx>=0) state.skus[idx]=s; else state.skus.push(s);
+    save();
+    clearSku();
+  });
+
+  function loadSku(id){
+    const s = state.skus.find(x=>x.id===id); if(!s) return;
+    $("s_id").value=s.id; $("s_cat").value=s.category; $("s_name").value=s.name||""; $("s_upc").value=s.upc||"";
+    $("s_cost").value=s.cost??""; $("s_price").value=s.price??""; $("s_par").value=s.defaultPar??""; $("s_notes").value=s.notes||"";
+  }
+  function deleteSku(id){
+    state.skus = state.skus.filter(s=>s.id!==id);
+    state.planograms = state.planograms.filter(p=>p.skuId!==id);
+    state.machineInventory = (state.machineInventory||[]).filter(x=>x.skuId!==id);
+    save();
+  }
+  function skuName(id){
+    const s = state.skus.find(x=>x.id===id);
+    return s ? (s.name||"") : "";
+  }
+
+  $("savePlanogram").addEventListener("click", () => {
+    const machineId = $("p_machine").value;
+    const skuId = $("p_sku").value;
+    const slot = t($("p_slot").value);
+    if(!machineId){ alert("Select a machine."); return; }
+    if(!skuId){ alert("Select a SKU."); return; }
+    if(!slot){ alert("Slot/column is required."); return; }
+
+    const s = state.skus.find(x=>x.id===skuId);
+    const p = {
+      machineId, skuId, slot,
+      par: Math.max(0, Math.floor(n($("p_par").value) || (s ? s.defaultPar : 0))),
+      enabled: $("p_enabled").value==="true"
+    };
+
+    const keySlot = slot.toUpperCase();
+    const idx = state.planograms.findIndex(x=>x.machineId===machineId && t(x.slot).toUpperCase()===keySlot);
+    if(idx>=0) state.planograms[idx]=p; else state.planograms.push(p);
+    save();
+    $("p_slot").value=""; $("p_par").value=""; $("p_enabled").value="true";
+  });
+
+  function deletePlanogram(machineId, slot){
+    const keySlot = t(slot).toUpperCase();
+    state.planograms = state.planograms.filter(p=>!(p.machineId===machineId && t(p.slot).toUpperCase()===keySlot));
+    save();
+  }
+
+  let lines = [];
+  function renderLines(){
+    const tb = $("linesTable");
+    tb.innerHTML = "";
+    lines.forEach((li, idx)=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td style="font-family:ui-monospace,Consolas,monospace">${esc(li.skuId)}</td>
+                      <td>${esc(skuName(li.skuId) || "(Unknown)")}</td>
+                      <td>${esc(li.qtyAdded)}</td>
+                      <td>${li.oos ? '<span class="pill warn">Yes</span>' : '<span class="pill">No</span>'}</td>
+                      <td><button class="secondary" type="button" data-idx="${idx}">Remove</button></td>`;
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll("button[data-idx]").forEach(b=>{
+      b.addEventListener("click", ()=>{
+        lines.splice(parseInt(b.dataset.idx,10),1);
+        renderLines();
+      });
+    });
+  }
+
+  $("addLine").addEventListener("click", ()=>{
+    const skuId = $("li_sku").value;
+    if(!skuId){ alert("Select a SKU."); return; }
+    const qty = Math.max(0, Math.floor(n($("li_qty").value)));
+    const oos = $("li_oos").value==="true";
+    lines.push({skuId, qtyAdded: qty, oos});
+    $("li_qty").value=""; $("li_oos").value="false";
+    renderLines();
+  });
+
+  $("clearLines").addEventListener("click", ()=>{ lines=[]; renderLines(); });
+
+  function clearVisit(){
+    $("v_id").value=""; $("v_date").value=todayISO(); $("v_machine").value=""; $("v_type").value="Restock + Collection";
+    $("v_cash").value=""; $("v_card").value=""; $("v_coin").value=""; $("v_notes").value="";
+    lines=[]; renderLines();
+  }
+  $("clearVisit").addEventListener("click", clearVisit);
+
+  $("saveVisit").addEventListener("click", ()=>{
+    const machineId = $("v_machine").value;
+    if(!machineId){ alert("Machine is required."); return; }
+    const visitId = t($("v_id").value) || uid("VISIT");
+    const v = {
+      visitId,
+      date: $("v_date").value || todayISO(),
+      machineId,
+      type: $("v_type").value,
+      cash: n($("v_cash").value),
+      card: n($("v_card").value),
+      coin: n($("v_coin").value),
+      notes: t($("v_notes").value),
+      lineItems: lines.map(x=>({skuId:x.skuId, qtyAdded:x.qtyAdded, outOfStockFound:x.oos}))
+    };
+    const idx = state.visits.findIndex(x=>x.visitId===visitId);
+    if(idx>=0) state.visits[idx]=v; else state.visits.push(v);
+    save();
+    clearVisit();
+  });
+
+  function loadVisit(visitId){
+    const v = state.visits.find(x=>x.visitId===visitId); if(!v) return;
+    $("v_id").value=v.visitId; $("v_date").value=v.date||""; $("v_machine").value=v.machineId||"";
+    $("v_type").value=v.type||"Restock + Collection";
+    $("v_cash").value=v.cash??""; $("v_card").value=v.card??""; $("v_coin").value=v.coin??"";
+    $("v_notes").value=v.notes||"";
+    lines = (v.lineItems||[]).map(li=>({skuId:li.skuId, qtyAdded:li.qtyAdded, oos:!!li.outOfStockFound}));
+    renderLines();
+  }
+  function deleteVisit(visitId){
+    state.visits = state.visits.filter(v=>v.visitId!==visitId);
+    save();
+  }
+
+  function clearTicket(){
+    $("t_id").value=""; $("t_status").value="Open"; $("t_machine").value=""; $("t_priority").value="Normal";
+    $("t_opened").value=todayISO(); $("t_resolved").value=""; $("t_downtime").value="";
+    $("t_issue").value="Bill Validator"; $("t_parts").value=""; $("t_notes").value="";
+  }
+  $("clearTicket").addEventListener("click", clearTicket);
+
+  $("saveTicket").addEventListener("click", ()=>{
+    const machineId = $("t_machine").value;
+    if(!machineId){ alert("Machine is required."); return; }
+    const ticketId = t($("t_id").value) || uid("TICKET");
+    const ticket = {
+      ticketId,
+      status: $("t_status").value,
+      machineId,
+      priority: $("t_priority").value,
+      opened: $("t_opened").value || todayISO(),
+      resolved: $("t_resolved").value || "",
+      downtimeHrs: $("t_downtime").value ? n($("t_downtime").value) : null,
+      issueType: $("t_issue").value,
+      parts: t($("t_parts").value),
+      notes: t($("t_notes").value)
+    };
+    const idx = state.tickets.findIndex(x=>x.ticketId===ticketId);
+    if(idx>=0) state.tickets[idx]=ticket; else state.tickets.push(ticket);
+    save();
+    clearTicket();
+  });
+
+  function loadTicket(ticketId){
+    const x = state.tickets.find(tk=>tk.ticketId===ticketId); if(!x) return;
+    $("t_id").value=x.ticketId; $("t_status").value=x.status; $("t_machine").value=x.machineId;
+    $("t_priority").value=x.priority; $("t_opened").value=x.opened||""; $("t_resolved").value=x.resolved||"";
+    $("t_downtime").value=x.downtimeHrs??""; $("t_issue").value=x.issueType||"Other";
+    $("t_parts").value=x.parts||""; $("t_notes").value=x.notes||"";
+  }
+  function deleteTicket(ticketId){
+    state.tickets = state.tickets.filter(tk=>tk.ticketId!==ticketId);
+    save();
+  }
+
+  function clearExpense(){
+    $("e_id").value=""; $("e_date").value=todayISO(); $("e_cat").value="Inventory"; $("e_vendor").value="";
+    $("e_machine").value=""; $("e_amount").value=""; $("e_notes").value="";
+  }
+  $("clearExpense").addEventListener("click", clearExpense);
+
+  $("saveExpense").addEventListener("click", ()=>{
+    const amount = n($("e_amount").value);
+    if(amount <= 0){ alert("Amount must be greater than 0."); return; }
+    const expense = {
+      expenseId: t($("e_id").value) || uid("EXP"),
+      date: $("e_date").value || todayISO(),
+      category: $("e_cat").value,
+      vendor: t($("e_vendor").value),
+      machineId: $("e_machine").value || "",
+      amount,
+      notes: t($("e_notes").value)
+    };
+    const idx = state.expenses.findIndex(x=>x.expenseId===expense.expenseId);
+    if(idx>=0) state.expenses[idx]=expense; else state.expenses.push(expense);
+    save();
+    clearExpense();
+  });
+
+  function loadExpense(expenseId){
+    const e = state.expenses.find(x=>x.expenseId===expenseId); if(!e) return;
+    $("e_id").value=e.expenseId; $("e_date").value=e.date||""; $("e_cat").value=e.category||"Other";
+    $("e_vendor").value=e.vendor||""; $("e_machine").value=e.machineId||"";
+    $("e_amount").value=e.amount??""; $("e_notes").value=e.notes||"";
+  }
+  function deleteExpense(expenseId){
+    state.expenses = state.expenses.filter(e=>e.expenseId!==expenseId);
+    save();
+  }
+
+  function loadSettingsUI(){
+    $("set_comm").value = state.settings.defaultCommission ?? 10;
+    $("set_freq").value = state.settings.defaultFreq ?? 7;
+    $("set_cur").value = state.settings.currency ?? "$";
+    $("set_owner").value = state.settings.owner ?? "";
+  }
+  $("saveSettings").addEventListener("click", ()=>{
+    state.settings.defaultCommission = n($("set_comm").value);
+    state.settings.defaultFreq = Math.max(1, Math.floor(n($("set_freq").value) || 7));
+    state.settings.currency = t($("set_cur").value) || "$";
+    state.settings.owner = t($("set_owner").value);
+    save();
+    alert("Settings saved.");
+  });
+
+  function download(name, content, mime="text/plain"){
+    const blob = new Blob([content], {type:mime});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  }
+
+  function exportJSON(){ download(`vending-tracker-backup-${todayISO()}.json`, JSON.stringify(state,null,2), "application/json"); }
+  function importJSON(){
+    $("file").value = "";
+    $("file").click();
+  }
+  $("exportJson").addEventListener("click", exportJSON);
+  $("importJson").addEventListener("click", importJSON);
+  $("exportJsonTop").addEventListener("click", exportJSON);
+  $("importJsonTop").addEventListener("click", importJSON);
+
+  $("file").addEventListener("change", (e)=>{
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try{
+        const incoming = JSON.parse(r.result);
+        if(!incoming || typeof incoming!=="object") throw new Error("Invalid JSON");
+        const base = empty();
+        state = {
+          ...base,
+          ...incoming,
+          settings: { ...base.settings, ...(incoming.settings||{}) },
+          meta: { ...base.meta, ...(incoming.meta||{}) },
+          machines: Array.isArray(incoming.machines)? incoming.machines: [],
+          skus: Array.isArray(incoming.skus)? incoming.skus: [],
+          planograms: Array.isArray(incoming.planograms)? incoming.planograms: [],
+          visits: Array.isArray(incoming.visits)? incoming.visits: [],
+          tickets: Array.isArray(incoming.tickets)? incoming.tickets: [],
+          expenses: Array.isArray(incoming.expenses)? incoming.expenses: []
+        };
+        save();
+        alert("Import successful.");
+      }catch(err){
+        alert("Import failed: " + err.message);
+      }
+    };
+    r.readAsText(f);
+  });
+
+  function csv(rows){
+    return rows.map(r => r.map(v => {
+      const s = (v ?? "").toString();
+      const q = s.replace(/"/g,'""');
+      return /[",\n]/.test(q) ? `"${q}"` : q;
+    }).join(",")).join("\n");
+  }
+
+  function exportMachinesCSV(){
+    const rows = [["id","status","type","model","location","address","commissionPct","serviceFreqDays","notes","lastVisit"]];
+    state.machines.forEach(m=>rows.push([m.id,m.status,m.type,m.model,m.location,m.address,m.commissionPct,m.serviceFreqDays,m.notes,lastVisit(m.id)]));
+    download(`machines-${todayISO()}.csv`, csv(rows), "text/csv");
+  }
+  function exportSkusCSV(){
+    const rows = [["id","category","name","upc","cost","price","defaultPar","notes"]];
+    state.skus.forEach(s=>rows.push([s.id,s.category,s.name,s.upc,s.cost,s.price,s.defaultPar,s.notes]));
+    download(`skus-${todayISO()}.csv`, csv(rows), "text/csv");
+  }
+  function exportPlanogramsCSV(){
+    const rows = [["machineId","slot","skuId","par","enabled"]];
+    state.planograms.forEach(p=>rows.push([p.machineId,p.slot,p.skuId,p.par,p.enabled]));
+    download(`planograms-${todayISO()}.csv`, csv(rows), "text/csv");
+  }
+  function exportVisitsCSV(){
+    const rows = [["visitId","date","machineId","type","cash","card","coin","total","commissionEst","notes","lineItemCount"]];
+    state.visits.forEach(v=>rows.push([v.visitId,v.date,v.machineId,v.type,v.cash,v.card,v.coin,visitTotal(v),commEst(v),v.notes,(v.lineItems||[]).length]));
+    download(`visits-${todayISO()}.csv`, csv(rows), "text/csv");
+  }
+  function exportVisitLinesCSV(){
+    const rows = [["visitId","date","machineId","skuId","qtyAdded","outOfStockFound"]];
+    state.visits.forEach(v=>(v.lineItems||[]).forEach(li=>rows.push([v.visitId,v.date,v.machineId,li.skuId,li.qtyAdded,li.outOfStockFound])));
+    download(`visit-line-items-${todayISO()}.csv`, csv(rows), "text/csv");
+  }
+  function exportTicketsCSV(){
+    const rows = [["ticketId","status","priority","machineId","opened","resolved","downtimeHrs","issueType","parts","notes"]];
+    state.tickets.forEach(tk=>rows.push([tk.ticketId,tk.status,tk.priority,tk.machineId,tk.opened,tk.resolved,tk.downtimeHrs??"",tk.issueType,tk.parts,tk.notes]));
+    download(`tickets-${todayISO()}.csv`, csv(rows), "text/csv");
+  }
+  function exportExpensesCSV(){
+    const rows = [["expenseId","date","category","vendor","machineId","amount","notes"]];
+    state.expenses.forEach(e=>rows.push([e.expenseId,e.date,e.category,e.vendor,e.machineId,e.amount,e.notes]));
+    download(`expenses-${todayISO()}.csv`, csv(rows), "text/csv");
+  }
+
+  $("csvMachines").addEventListener("click", exportMachinesCSV);
+  $("csvSkus").addEventListener("click", exportSkusCSV);
+  $("csvPlanograms").addEventListener("click", exportPlanogramsCSV);
+  $("csvVisits").addEventListener("click", exportVisitsCSV);
+  $("csvVisitLines").addEventListener("click", exportVisitLinesCSV);
+  $("csvTickets").addEventListener("click", exportTicketsCSV);
+  $("csvExpenses").addEventListener("click", exportExpensesCSV);
+  $("csvAll").addEventListener("click", ()=>{
+    exportMachinesCSV(); exportSkusCSV(); exportPlanogramsCSV(); exportVisitsCSV(); exportVisitLinesCSV(); exportTicketsCSV(); exportExpensesCSV();
+  });
+
+  let lastSummary = null;
+  function runReport(){
+    const from = $("r_from").value;
+    const to = $("r_to").value;
+    const machine = $("r_machine").value;
+    const includeComm = $("r_comm").value==="true";
+
+    const visits = state.visits.filter(v=>{
+      if(machine && v.machineId!==machine) return false;
+      if(from && v.date < from) return false;
+      if(to && v.date > to) return false;
+      return true;
+    });
+    const expenses = state.expenses.filter(e=>{
+      if(machine){
+        if(!e.machineId) return false;
+        if(e.machineId!==machine) return false;
+      }
+      if(from && e.date < from) return false;
+      if(to && e.date > to) return false;
+      return true;
+    });
+
+    const revenue = visits.reduce((s,v)=>s+visitTotal(v),0);
+    const commission = includeComm ? visits.reduce((s,v)=>s+commEst(v),0) : 0;
+    const exp = expenses.reduce((s,e)=>s+n(e.amount),0);
+    const profit = revenue - exp - commission;
+    const oos = visits.reduce((c,v)=>c+(v.lineItems||[]).filter(li=>li.outOfStockFound).length,0);
+    const avg = visits.length ? revenue/visits.length : 0;
+
+    $("repRev").textContent = money(revenue);
+    $("repComm").textContent = money(commission);
+    $("repExp").textContent = money(exp);
+    $("repProfit").textContent = money(profit);
+
+    const tb = $("repTable");
+    tb.innerHTML = "";
+    const rows = [
+      ["Visits", visits.length, "Service visit records in range"],
+      ["Gross revenue", money(revenue), "Cash + card + coin totals"],
+      ["Commission estimate", money(commission), includeComm ? "Based on machine commission %" : "Not included (disabled)"],
+      ["Expenses", money(exp), "Expense log totals in range"],
+      ["Profit estimate", money(profit), "Revenue − Expenses − Commission (if included)"],
+      ["OOS events", oos, "Line items marked OOS on arrival"],
+      ["Avg revenue per visit", money(avg), "Useful route performance metric"]
+    ];
+    rows.forEach(r=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${esc(r[0])}</td><td style="font-family:ui-monospace,Consolas,monospace">${esc(r[1])}</td><td style="color:var(--muted);font-size:12px">${esc(r[2])}</td>`;
+      tb.appendChild(tr);
+    });
+
+    lastSummary = {from,to,machine,includeComm,revenue,commission,exp,profit,visitsCount:visits.length,oos,avg};
+  }
+  $("runReport").addEventListener("click", runReport);
+
+  $("csvReport").addEventListener("click", ()=>{
+    if(!lastSummary){ alert("Run a report first."); return; }
+    const rows = [
+      ["from","to","machineId","includeCommission","revenue","commission","expenses","profit","visitsCount","oosEvents","avgRevenuePerVisit"],
+      [lastSummary.from,lastSummary.to,lastSummary.machine,lastSummary.includeComm,lastSummary.revenue,lastSummary.commission,lastSummary.exp,lastSummary.profit,lastSummary.visitsCount,lastSummary.oos,lastSummary.avg]
+    ];
+    download(`report-summary-${todayISO()}.csv`, csv(rows), "text/csv");
+  });
+
+  function renderMachines(){
+    const tb = $("machinesTable");
+    tb.innerHTML = "";
+    state.machines.slice().sort((a,b)=>a.id.localeCompare(b.id)).forEach(m=>{
+      const hay = `${m.id} ${m.status} ${m.type} ${m.model} ${m.location} ${m.address} ${m.notes}`;
+      if(!matches(hay)) return;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td style="font-family:ui-monospace,Consolas,monospace">${esc(m.id)}</td>
+        <td>${esc(m.status)}</td>
+        <td>${esc(m.type)}</td>
+        <td>${esc(m.location||"")}</td>
+        <td>${n(m.commissionPct).toFixed(1)}%</td>
+        <td>${esc(m.serviceFreqDays)}</td>
+        <td>${esc(lastVisit(m.id) || "—")}</td>
+        <td>
+          <button class="secondary" type="button" data-act="edit" data-id="${esc(m.id)}">Edit</button>
+          <button class="danger" type="button" data-act="del" data-id="${esc(m.id)}">Delete</button>
+        </td>`;
+      tb.appendChild(tr);
+    });
+
+    tb.querySelectorAll("button[data-act='edit']").forEach(b=>b.addEventListener("click", ()=>loadMachine(b.dataset.id)));
+    tb.querySelectorAll("button[data-act='del']").forEach(b=>b.addEventListener("click", ()=>{
+      if(confirm("Delete machine " + b.dataset.id + "?")) deleteMachine(b.dataset.id);
+    }));
+  }
+
+  
+  // -------- Inventory per machine (on-hand + par) --------
+  function invKey(machineId, skuId){ return `${machineId}||${skuId}`; }
+
+  function upsertMachineInventory(rec){
+    state.machineInventory = state.machineInventory || [];
+    const k = invKey(rec.machineId, rec.skuId);
+    const idx = state.machineInventory.findIndex(x => invKey(x.machineId, x.skuId) === k);
+    if(idx >= 0) state.machineInventory[idx] = { ...state.machineInventory[idx], ...rec };
+    else state.machineInventory.push(rec);
+  }
+
+  function deleteMachineInventory(machineId, skuId){
+    state.machineInventory = (state.machineInventory||[]).filter(x => !(x.machineId===machineId && x.skuId===skuId));
+    save();
+  }
+
+  function renderMachineInventory(){
+    const sel = $("mi_machine");
+    const machineId = sel && sel.value ? sel.value : "";
+    const tbody = $("mi_table");
+    if(!tbody) return;
+    tbody.innerHTML = "";
+    if(!machineId){
+      tbody.innerHTML = `<tr><td colspan="6" class="muted">Select a machine to view inventory.</td></tr>`;
+      return;
+    }
+    const rows = (state.machineInventory||[])
+      .filter(x=>x.machineId===machineId)
+      .slice()
+      .sort((a,b)=>a.skuId.localeCompare(b.skuId));
+
+    if(!rows.length){
+      tbody.innerHTML = `<tr><td colspan="6" class="muted">No inventory rows yet for this machine.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(r=>{
+      const s = state.skus.find(z=>z.id===r.skuId) || {};
+      const updated = r.updatedISO ? new Date(r.updatedISO).toLocaleString() : "—";
+      return `<tr>
+        <td>${esc(r.skuId)}</td>
+        <td>${esc(s.name||"")}</td>
+        <td>${num(r.onHand)}</td>
+        <td>${r.par==null||r.par==="" ? "—" : num(r.par)}</td>
+        <td class="muted">${esc(updated)}</td>
+        <td>
+          <button class="secondary" type="button" data-act="editMi" data-sku="${esc(r.skuId)}">Edit</button>
+          <button class="danger" type="button" data-act="delMi" data-sku="${esc(r.skuId)}">Delete</button>
+        </td>
+      </tr>`;
+    }).join("");
+
+    // wire row buttons
+    tbody.querySelectorAll("button[data-act]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const act = btn.dataset.act;
+        const skuId = btn.dataset.sku;
+        if(act==="editMi"){
+          const r = (state.machineInventory||[]).find(x=>x.machineId===machineId && x.skuId===skuId);
+          if(!r) return;
+          $("mi_sku").value = skuId;
+          $("mi_qty").value = r.onHand ?? 0;
+          $("mi_par").value = r.par ?? "";
+          // scroll to the form for convenience
+          try{ $("mi_sku").scrollIntoView({behavior:"smooth", block:"center"}); }catch{}
+        }else if(act==="delMi"){
+          if(!confirm(`Delete inventory row for ${machineId} / ${skuId}?`)) return;
+          deleteMachineInventory(machineId, skuId);
+        }
+      });
+    });
+  }
+
+  function clearMI(){
+    if($("mi_sku")) $("mi_sku").value="";
+    if($("mi_qty")) $("mi_qty").value="0";
+    if($("mi_par")) $("mi_par").value="";
+  }
+
+function renderSkus(){
+    const tb = $("skusTable");
+    tb.innerHTML = "";
+    state.skus.slice().sort((a,b)=>a.id.localeCompare(b.id)).forEach(s=>{
+      const hay = `${s.id} ${s.category} ${s.name} ${s.upc} ${s.notes}`;
+      if(!matches(hay)) return;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td style="font-family:ui-monospace,Consolas,monospace">${esc(s.id)}</td>
+        <td>${esc(s.category)}</td><td>${esc(s.name||"")}</td><td>${esc(s.upc||"")}</td>
+        <td>${money(n(s.cost))}</td><td>${money(n(s.price))}</td><td>${esc(s.defaultPar)}</td>
+        <td>
+          <button class="secondary" type="button" data-act="edit" data-id="${esc(s.id)}">Edit</button>
+          <button class="danger" type="button" data-act="del" data-id="${esc(s.id)}">Delete</button>
+        </td>`;
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll("button[data-act='edit']").forEach(b=>b.addEventListener("click", ()=>loadSku(b.dataset.id)));
+    tb.querySelectorAll("button[data-act='del']").forEach(b=>b.addEventListener("click", ()=>{
+      if(confirm("Delete SKU " + b.dataset.id + "?")) deleteSku(b.dataset.id);
+    }));
+  }
+
+  function renderPlanograms(){
+    const tb = $("planogramsTable");
+    tb.innerHTML = "";
+    state.planograms.slice().sort((a,b)=>{
+      const k1 = (a.machineId+a.slot).toLowerCase(), k2 = (b.machineId+b.slot).toLowerCase();
+      return k1.localeCompare(k2);
+    }).forEach(p=>{
+      const m = state.machines.find(x=>x.id===p.machineId);
+      const prod = skuName(p.skuId);
+      const hay = `${p.machineId} ${m?m.location:""} ${p.slot} ${p.skuId} ${prod}`;
+      if(!matches(hay)) return;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td style="font-family:ui-monospace,Consolas,monospace">${esc(p.machineId)}</td>
+        <td>${esc(p.slot)}</td>
+        <td style="font-family:ui-monospace,Consolas,monospace">${esc(p.skuId)}</td>
+        <td>${esc(prod||"")}</td>
+        <td>${esc(p.par)}</td>
+        <td>${p.enabled?'<span class="pill good">Yes</span>':'<span class="pill">No</span>'}</td>
+        <td><button class="danger" type="button" data-m="${esc(p.machineId)}" data-s="${esc(p.slot)}">Remove</button></td>`;
+      tb.appendChild(tr);
+    });
+
+    tb.querySelectorAll("button[data-m]").forEach(b=>b.addEventListener("click", ()=>{
+      if(confirm("Remove slot " + b.dataset.s + " from " + b.dataset.m + "?")) deletePlanogram(b.dataset.m, b.dataset.s);
+    }));
+  }
+
+  function renderVisits(){
+    const tb = $("visitsTable");
+    tb.innerHTML = "";
+    state.visits.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).forEach(v=>{
+      const m = state.machines.find(x=>x.id===v.machineId);
+      const hay = `${v.visitId} ${v.date} ${v.machineId} ${m?m.location:""} ${v.type} ${v.notes}`;
+      if(!matches(hay)) return;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${esc(v.date||"")}</td>
+        <td style="font-family:ui-monospace,Consolas,monospace">${esc(v.visitId)}</td>
+        <td style="font-family:ui-monospace,Consolas,monospace">${esc(v.machineId)}</td>
+        <td>${esc(v.type)}</td>
+        <td>${money(visitTotal(v))}</td>
+        <td>${money(commEst(v))}</td>
+        <td>${(v.lineItems||[]).length}</td>
+        <td>
+          <button class="secondary" type="button" data-act="edit" data-id="${esc(v.visitId)}">Edit</button>
+          <button class="danger" type="button" data-act="del" data-id="${esc(v.visitId)}">Delete</button>
+        </td>`;
+      tb.appendChild(tr);
+    });
+
+    tb.querySelectorAll("button[data-act='edit']").forEach(b=>b.addEventListener("click", ()=>loadVisit(b.dataset.id)));
+    tb.querySelectorAll("button[data-act='del']").forEach(b=>b.addEventListener("click", ()=>{
+      if(confirm("Delete visit " + b.dataset.id + "?")) deleteVisit(b.dataset.id);
+    }));
+  }
+
+  function renderTickets(){
+    const tb = $("ticketsTable");
+    tb.innerHTML = "";
+    state.tickets.slice().sort((a,b)=>(b.opened||"").localeCompare(a.opened||"")).forEach(tk=>{
+      const m = state.machines.find(x=>x.id===tk.machineId);
+      const hay = `${tk.ticketId} ${tk.status} ${tk.priority} ${tk.machineId} ${m?m.location:""} ${tk.issueType} ${tk.parts} ${tk.notes}`;
+      if(!matches(hay)) return;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${esc(tk.opened||"")}</td>
+        <td style="font-family:ui-monospace,Consolas,monospace">${esc(tk.ticketId)}</td>
+        <td>${esc(tk.status)}</td>
+        <td>${esc(tk.priority)}</td>
+        <td style="font-family:ui-monospace,Consolas,monospace">${esc(tk.machineId)}</td>
+        <td>${esc(tk.issueType)}</td>
+        <td>${esc(tk.resolved||"") || "—"}</td>
+        <td>
+          <button class="secondary" type="button" data-act="edit" data-id="${esc(tk.ticketId)}">Edit</button>
+          <button class="danger" type="button" data-act="del" data-id="${esc(tk.ticketId)}">Delete</button>
+        </td>`;
+      tb.appendChild(tr);
+    });
+
+    tb.querySelectorAll("button[data-act='edit']").forEach(b=>b.addEventListener("click", ()=>loadTicket(b.dataset.id)));
+    tb.querySelectorAll("button[data-act='del']").forEach(b=>b.addEventListener("click", ()=>{
+      if(confirm("Delete ticket " + b.dataset.id + "?")) deleteTicket(b.dataset.id);
+    }));
+  }
+
+  function renderExpenses(){
+    const tb = $("expensesTable");
+    tb.innerHTML = "";
+    state.expenses.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).forEach(e=>{
+      const m = state.machines.find(x=>x.id===e.machineId);
+      const hay = `${e.expenseId} ${e.date} ${e.category} ${e.vendor} ${e.machineId} ${m?m.location:""} ${e.notes}`;
+      if(!matches(hay)) return;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${esc(e.date||"")}</td>
+        <td style="font-family:ui-monospace,Consolas,monospace">${esc(e.expenseId)}</td>
+        <td>${esc(e.category)}</td>
+        <td>${esc(e.vendor||"")}</td>
+        <td style="font-family:ui-monospace,Consolas,monospace">${esc(e.machineId||"") || "—"}</td>
+        <td>${money(n(e.amount))}</td>
+        <td>
+          <button class="secondary" type="button" data-act="edit" data-id="${esc(e.expenseId)}">Edit</button>
+          <button class="danger" type="button" data-act="del" data-id="${esc(e.expenseId)}">Delete</button>
+        </td>`;
+      tb.appendChild(tr);
+    });
+
+    tb.querySelectorAll("button[data-act='edit']").forEach(b=>b.addEventListener("click", ()=>loadExpense(b.dataset.id)));
+    tb.querySelectorAll("button[data-act='del']").forEach(b=>b.addEventListener("click", ()=>{
+      if(confirm("Delete expense " + b.dataset.id + "?")) deleteExpense(b.dataset.id);
+    }));
+  }
+
+  function renderDashboard(){
+    const activeMachines = state.machines.filter(m=>m.status==="Active").length;
+    const rev30 = state.visits.filter(v=>within(v.date,30)).reduce((s,v)=>s+visitTotal(v),0);
+    const exp30 = state.expenses.filter(e=>within(e.date,30)).reduce((s,e)=>s+n(e.amount),0);
+    const comm30 = state.visits.filter(v=>within(v.date,30)).reduce((s,v)=>s+commEst(v),0);
+    const profit30 = rev30 - exp30 - comm30;
+    const openTickets = state.tickets.filter(tk=>["Open","In Progress","Waiting on Parts"].includes(tk.status)).length;
+    const oos30 = state.visits.filter(v=>within(v.date,30)).reduce((c,v)=>c+(v.lineItems||[]).filter(li=>li.outOfStockFound).length,0);
+
+    $("kMachines").textContent = activeMachines;
+    $("kRev30").textContent = money(rev30);
+    $("kExp30").textContent = money(exp30);
+    $("kOpenTickets").textContent = openTickets;
+    $("kOos30").textContent = oos30;
+    $("kProfit30").textContent = money(profit30);
+
+    const flags = [];
+    state.machines.forEach(m=>{
+      const last = lastVisit(m.id);
+      const dueIn = m.serviceFreqDays || (state.settings.defaultFreq ?? 7);
+      if(last){
+        const d = Math.floor((Date.now() - new Date(last).getTime()) / days(1));
+        if(d > dueIn) flags.push(`Overdue service: ${m.id} (${m.location||"No location"}) • Last visit ${last}`);
+      }else{
+        flags.push(`No visits logged yet: ${m.id} (${m.location||"No location"})`);
+      }
+    });
+    const openCritical = state.tickets.filter(tk=>tk.priority==="Critical" && ["Open","In Progress","Waiting on Parts"].includes(tk.status));
+    openCritical.forEach(tk=>flags.push(`Critical open ticket: ${tk.ticketId} • ${tk.machineId} • ${tk.issueType}`));
+
+    $("flags").textContent = flags.length ? flags.join("\n") : "No flags.";
+
+    const tb = $("nextService");
+    tb.innerHTML = "";
+    state.machines.slice().sort((a,b)=>a.id.localeCompare(b.id)).forEach(m=>{
+      if(m.status!=="Active") return;
+      const last = lastVisit(m.id);
+      const freq = m.serviceFreqDays || (state.settings.defaultFreq ?? 7);
+      let next = "—";
+      let reason = "No visit history";
+      if(last){
+        const d = new Date(last);
+        d.setDate(d.getDate() + freq);
+        next = d.toISOString().slice(0,10);
+        reason = `Every ${freq} day(s)`;
+      }
+      const hay = `${m.id} ${m.location} ${last} ${next}`;
+      if(!matches(hay)) return;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td style="font-family:ui-monospace,Consolas,monospace">${esc(m.id)}</td>
+        <td>${esc(m.location||"")}</td>
+        <td>${esc(last || "—")}</td>
+        <td>${esc(next)}</td>
+        <td style="color:var(--muted);font-size:12px">${esc(reason)}</td>`;
+      tb.appendChild(tr);
+    });
+  }
+
+  function updateCounts(){
+    $("cMachines").textContent = state.machines.length;
+    $("cSkus").textContent = state.skus.length;
+    $("cVisits").textContent = state.visits.length;
+    $("cTickets").textContent = state.tickets.length;
+    $("cExpenses").textContent = state.expenses.length;
+  }
+
+  function demo(){
+    if(!confirm("Load demo data (overwrites current data)?")) return;
+    state = empty();
+    state.settings = { defaultCommission: 10, defaultFreq: 7, currency: "$", owner: "" };
+
+    state.machines = [
+      { id:"M-001", status:"Active", type:"Snack", model:"AMS 39", location:"Acme Warehouse", address:"123 Industrial Dr", commissionPct:10, serviceFreqDays:7, notes:"Key at front desk." },
+      { id:"M-002", status:"Active", type:"Drink", model:"DN 501E", location:"Fit24 Gym", address:"9 Main St", commissionPct:12, serviceFreqDays:5, notes:"Service after 10am." }
+    ];
+    state.skus = [
+      { id:"SKU-CHIPS-001", category:"Snack", name:"Doritos Nacho", upc:"", cost:0.62, price:1.75, defaultPar:12, notes:"Case size 64" },
+      { id:"SKU-CANDY-001", category:"Candy", name:"Snickers", upc:"", cost:0.55, price:1.50, defaultPar:10, notes:"Case size 48" },
+      { id:"SKU-DRINK-001", category:"Drink", name:"Coke 20oz", upc:"", cost:0.95, price:2.25, defaultPar:20, notes:"Case size 24" }
+    ];
+    state.planograms = [
+      { machineId:"M-001", slot:"A1", skuId:"SKU-CHIPS-001", par:12, enabled:true },
+      { machineId:"M-001", slot:"B1", skuId:"SKU-CANDY-001", par:10, enabled:true },
+      { machineId:"M-002", slot:"1", skuId:"SKU-DRINK-001", par:20, enabled:true }
+    ];
+    state.visits = [
+      { visitId:"VISIT-DEMO-1", date: todayISO(), machineId:"M-001", type:"Restock + Collection", cash:65.25, card:88.10, coin:6.00, notes:"One spiral jammed briefly.", lineItems:[
+        { skuId:"SKU-CHIPS-001", qtyAdded:12, outOfStockFound:false },
+        { skuId:"SKU-CANDY-001", qtyAdded:10, outOfStockFound:true }
+      ] }
+    ];
+    state.tickets = [
+      { ticketId:"TICKET-DEMO-1", status:"Open", priority:"High", machineId:"M-001", opened: todayISO(), resolved:"", downtimeHrs:null, issueType:"Motor/Spiral", parts:"", notes:"Slot B2 occasionally fails to vend." }
+    ];
+    state.expenses = [
+      { expenseId:"EXP-DEMO-1", date: todayISO(), category:"Inventory", vendor:"Sam's Club", machineId:"M-001", amount:42.30, notes:"Snacks + candy restock" },
+      { expenseId:"EXP-DEMO-2", date: todayISO(), category:"Fees/Processing", vendor:"Card Processor", machineId:"", amount:12.50, notes:"Monthly processing fees" }
+    ];
+
+    save();
+    clearMachine(); clearSku(); clearVisit(); clearTicket(); clearExpense();
+    loadSettingsUI();
+  }
+
+  function reset(){
+    if(!confirm("This will delete ALL tracker data on this device. Continue?")) return;
+    state = empty();
+    save();
+    clearMachine(); clearSku(); clearVisit(); clearTicket(); clearExpense();
+    loadSettingsUI();
+  }
+
+  $("demo").addEventListener("click", demo);
+  $("demoTop").addEventListener("click", demo);
+  $("reset").addEventListener("click", reset);
+  $("resetTop").addEventListener("click", reset);
+
+  function refresh(){
+    updateCounts();
+    refreshSelects();
+    renderMachines();
+    renderMachineInventory();
+    renderSkus();
+    renderPlanograms();
+    renderVisits();
+    renderTickets();
+    renderExpenses();
+    renderDashboard();
+    loadSettingsUI();
+  }
+
+  $("v_date").value = todayISO();
+  $("t_opened").value = todayISO();
+  $("e_date").value = todayISO();
+
+  const dTo = todayISO();
+  const dFrom = new Date(); dFrom.setDate(dFrom.getDate()-30);
+  $("r_to").value = dTo;
+  $("r_from").value = dFrom.toISOString().slice(0,10);
+
+  refresh();
+  save(); // show last saved immediately
+});
+</script>
+</body>
+</html>
