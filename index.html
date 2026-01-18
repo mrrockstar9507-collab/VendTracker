@@ -621,24 +621,6 @@ window.addEventListener("DOMContentLoaded", () => {
     settings:{title:"Settings",desc:"Defaults and backup/restore."}
   };
 
-  // UI preference: Machine list view (cards/table)
-  let machineView = (window.matchMedia && window.matchMedia('(max-width:980px)').matches) ? 'cards' : 'table';
-  function setMachineView(v){
-    machineView = v;
-    const cards = document.getElementById('machinesCards');
-    const table = document.getElementById('machinesTableWrap');
-    if(cards && table){
-      const showCards = (machineView==='cards');
-      cards.style.display = showCards ? 'grid' : 'none';
-      table.style.display = showCards ? 'none' : 'block';
-    }
-    const bC = document.getElementById('machineViewCards');
-    const bT = document.getElementById('machineViewTable');
-    if(bC) bC.classList.toggle('active', machineView==='cards');
-    if(bT) bT.classList.toggle('active', machineView==='table');
-  }
-
-
   function setTab(tab){
     document.querySelectorAll(".navitem").forEach(i=>i.classList.toggle("active", i.dataset.tab===tab));
     document.querySelectorAll(".section").forEach(s=>s.classList.toggle("active", s.id===("tab-"+tab)));
